@@ -1,4 +1,3 @@
-/* umumiy stillar */
 * {
   margin: 0;
   padding: 0;
@@ -71,7 +70,7 @@ body {
   color: #10182B;
 }
 
-/* hero qismi */
+
 .hero {
   padding: 30px 0 36px 0;
   border-bottom: 1px solid #2A3A61;
@@ -118,7 +117,7 @@ body {
   margin-bottom: 14px;
 }
 
-/* muammo kartalari */
+
 .problem-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -159,7 +158,7 @@ body {
   margin-top: 4px;
 }
 
-/* forma */
+
 .order-form {
   display: none;
   background: #16213D;
@@ -197,6 +196,55 @@ body {
   border-color: #FFB800;
 }
 
+.order-form select {
+  width: 100%;
+  background: #10182B;
+  border: 1px solid #2A3A61;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #EDEFF5;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.order-form select:focus {
+  border-color: #FFB800;
+}
+
+.form-xato {
+  color: #FF6B6B;
+  font-size: 12.5px;
+  margin-top: 12px;
+  min-height: 1px;
+}
+
+.usta-panel-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.usta-panel-buttons .btn-order {
+  margin-top: 0;
+}
+
+.btn-secondary {
+  background: #16213D !important;
+  color: #EDEFF5 !important;
+  border: 1px solid #2A3A61 !important;
+}
+
+.btn-secondary:hover {
+  background: #1D2C4D !important;
+}
+
+.btn-order:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-order {
   background: #FFB800;
   color: #10182B;
@@ -214,7 +262,7 @@ body {
   background: #ffc633;
 }
 
-/* qidirish animatsiyasi */
+
 .searching-box {
   display: none;
   text-align: center;
@@ -276,7 +324,7 @@ body {
   color: #8C93AD;
 }
 
-/* topilgan usta kartasi */
+
 .matched-box {
   display: none;
 }
@@ -343,7 +391,6 @@ body {
   color: #8C93AD;
 }
 
-/* admin sahifa */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

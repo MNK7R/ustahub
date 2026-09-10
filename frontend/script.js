@@ -1,7 +1,19 @@
-// tanlangan muammo turini shu yerda saqlab turamiz
 var selectedProblem = null;
+// bo'sh qatorli manzil - frontend backend bilan bir xil serverdan xizmat qilgani uchun
+// (server.js dagi express.static) domenni qattiq yozib qo'yish shart emas,
+// shunda saytni boshqa domenga ko'chirganda ham kod o'zgarmaydi
+var API_MANZIL = '';
+var adminToken = null;
 
-// tablarni almashtirish uchun funksiya
+// HTML ichiga foydalanuvchi kiritgan matnni xavfsiz joylashtirish uchun
+// (masalan buyurtma tavsifi yoki usta ismida <script> bo'lib qolmasligi uchun)
+function ekranlaHtml(matn) {
+  var div = document.createElement('div');
+  div.textContent = matn == null ? '' : String(matn);
+  return div.innerHTML;
+}
+
+// ===================== TAB =====================
 function showTab(tabName) {
   var customerPage = document.getElementById('customerPage');
   var adminPage = document.getElementById('adminPage');
@@ -19,33 +31,69 @@ function showTab(tabName) {
     adminBtn.classList.add('active');
     customerBtn.classList.remove('active');
 
-    // boshliq panelga o'tganda, har safar eng yangi ma'lumotni yuklaymiz
-    yuklaAdminMalumotlari();
+    // Admin panel ochilganda avtomatik login qilamiz
+    adminLoginKeyinYukla();
   }
 }
 
-// boshliq paneli uchun statistika, buyurtmalar va ustalarni backenddan olib kelamiz
+// ===================== ADMIN LOGIN =====================
+function adminLoginKeyinYukla() {
+  // Agar token allaqachon bor bo‘lsa, to‘g‘ridan-to‘g‘ri yuklaymiz
+  if (adminToken) {
+    yuklaAdminMalumotlari();
+    return;
+  }
+
+  // Default admin bilan kirish
+  fetch(API_MANZIL + '/api/admin/kirish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      telefon: '+998900000000',
+      parol: 'admin123'
+    })
+  })
+    .then(function (javob) {
+      if (!javob.ok) throw new Error('Admin login xato');
+      return javob.json();
+    })
+    .then(function (data) {
+      adminToken = data.token;
+      yuklaAdminMalumotlari();
+    })
+    .catch(function (xato) {
+      console.error('Admin login xato:', xato);
+      alert('Admin panelga kira olmadik. Backend ishlab turganiga va admin paroli to‘g‘riligiga ishonch hosil qiling.');
+    });
+}
+
+// ===================== ADMIN MA'LUMOTLAR =====================
 function yuklaAdminMalumotlari() {
-  // 1) statistika
-  fetch(API_MANZIL + '/api/statistika')
+  var headers = {
+    'Authorization': 'Bearer ' + adminToken
+  };
+
+  // 1. Statistika
+  fetch(API_MANZIL + '/api/statistika', { headers: headers })
     .then(function (javob) { return javob.json(); })
     .then(function (stat) {
       document.getElementById('statBugungi').textContent = stat.bugungiBuyurtmalar;
       document.getElementById('statFaolUstalar').textContent = stat.faolUstalar;
-      document.getElementById('statBandBosh').textContent = stat.bandUstalar + ' band, ' + stat.boshUstalar + ' bo\'sh';
+      document.getElementById('statBandBosh').textContent =
+        stat.bandUstalar + ' band, ' + stat.boshUstalar + ' bo\'sh';
       document.getElementById('statBandSoni').textContent = stat.bandUstalar;
     })
     .catch(function (xato) {
-      console.error('statistikani olishda xato', xato);
+      console.error('Statistika xato:', xato);
     });
 
-  // 2) so'nggi buyurtmalar jadvali
-  fetch(API_MANZIL + '/api/buyurtmalar')
+  // 2. Buyurtmalar
+  fetch(API_MANZIL + '/api/buyurtmalar', { headers: headers })
     .then(function (javob) { return javob.json(); })
     .then(function (buyurtmalar) {
       var jadvalTana = document.getElementById('ordersTableBody');
 
-      if (buyurtmalar.length === 0) {
+      if (!buyurtmalar || buyurtmalar.length === 0) {
         jadvalTana.innerHTML = '<tr><td colspan="5">Hali buyurtma yo\'q</td></tr>';
         return;
       }
@@ -54,7 +102,6 @@ function yuklaAdminMalumotlari() {
       for (var i = 0; i < buyurtmalar.length; i++) {
         var b = buyurtmalar[i];
 
-        // holatni chiroyliroq ko'rsatish uchun
         var holatPill = '';
         if (b.holat === 'yolda') {
           holatPill = '<span class="pill pill-active">Yo\'lda</span>';
@@ -64,23 +111,27 @@ function yuklaAdminMalumotlari() {
           holatPill = '<span class="pill pill-wait">Kutilmoqda</span>';
         }
 
+        var vaqt = b.yaratilgan_vaqt
+          ? b.yaratilgan_vaqt.slice(11, 16)   // faqat soat:daqiqa
+          : '-';
+
         qatorlarHtml += '<tr>';
-        qatorlarHtml += '<td>' + b.tavsif + '</td>';
-        qatorlarHtml += '<td>' + b.muammo_turi + '</td>';
-        qatorlarHtml += '<td>' + (b.usta_ism || '-') + '</td>';
+        qatorlarHtml += '<td>' + ekranlaHtml(b.tavsif || '-') + '</td>';
+        qatorlarHtml += '<td>' + ekranlaHtml(b.muammo_turi || '-') + '</td>';
+        qatorlarHtml += '<td>' + ekranlaHtml(b.usta_ism || '-') + '</td>';
         qatorlarHtml += '<td>' + holatPill + '</td>';
-        qatorlarHtml += '<td>' + b.yaratilgan_vaqt + '</td>';
+        qatorlarHtml += '<td>' + vaqt + '</td>';
         qatorlarHtml += '</tr>';
       }
 
       jadvalTana.innerHTML = qatorlarHtml;
     })
     .catch(function (xato) {
-      console.error('buyurtmalarni olishda xato', xato);
+      console.error('Buyurtmalar xato:', xato);
     });
 
-  // 3) ustalar ro'yxati
-  fetch(API_MANZIL + '/api/ustalar')
+  // 3. Ustalar
+  fetch(API_MANZIL + '/api/ustalar', { headers: headers })
     .then(function (javob) { return javob.json(); })
     .then(function (ustalar) {
       var konteyner = document.getElementById('ustaListContainer');
@@ -94,72 +145,58 @@ function yuklaAdminMalumotlari() {
         qatorlarHtml += '<div class="usta-row">';
         qatorlarHtml += '<div class="dot ' + nuqtaKlass + '"></div>';
         qatorlarHtml += '<div>';
-        qatorlarHtml += '<div class="usta-row-name">' + u.ism + '</div>';
-        qatorlarHtml += '<div class="usta-row-sub">' + u.turi + ', ' + holatSoz + '</div>';
+        qatorlarHtml += '<div class="usta-row-name">' + ekranlaHtml(u.ism) + '</div>';
+        qatorlarHtml += '<div class="usta-row-sub">' + ekranlaHtml(u.turi) + ', ' + holatSoz + '</div>';
         qatorlarHtml += '</div>';
         qatorlarHtml += '</div>';
       }
 
-      konteyner.innerHTML = qatorlarHtml;
+      konteyner.innerHTML = qatorlarHtml || '<div class="usta-row">Ustalar topilmadi</div>';
     })
     .catch(function (xato) {
-      console.error('ustalarni olishda xato', xato);
+      console.error('Ustalar xato:', xato);
     });
 }
 
-// muammo kartasi bosilganda ishlaydi
+// ===================== MUAMMO TANLASH =====================
 function selectProblem(cardElement, problemName) {
-  // avval hamma kartadan selected classini olib tashlaymiz
   var allCards = document.querySelectorAll('.problem-card');
   for (var i = 0; i < allCards.length; i++) {
     allCards[i].classList.remove('selected');
   }
 
-  // bosilgan kartaga selected qo'shamiz
   cardElement.classList.add('selected');
   selectedProblem = problemName;
 
-  // forma ko'rinsin
   document.getElementById('orderForm').style.display = 'block';
-
-  // eski natijalarni yashiramiz, yangi tanlov qilganda
   document.getElementById('searchingBox').style.display = 'none';
   document.getElementById('matchedBox').style.display = 'none';
 }
 
-// har xil muammo turi uchun namuna ustalar ro'yxati
-var ustaPool = {
-  'Santexnik': { name: 'Aziz Rahimov', jobs: '312 ta ish' },
-  'Elektrik': { name: 'Bekzod Tursunov', jobs: '198 ta ish' },
-  'Konditsioner': { name: 'Sardor Yusupov', jobs: '145 ta ish' },
-  'Boshqa': { name: 'Farrux Nazarov', jobs: '89 ta ish' }
-};
-
-// backend qayerda ishlayotgani, shu manzilga so'rov yuboramiz
-var API_MANZIL = 'http://localhost:3000';
-
-// "Usta chaqirish" tugmasi bosilganda
+// ===================== BUYURTMA YUBORISH =====================
 function sendOrder() {
-  var desc = document.getElementById('descInput').value;
-  var addr = document.getElementById('addrInput').value;
+  var desc = document.getElementById('descInput').value.trim();
+  var addr = document.getElementById('addrInput').value.trim();
 
-  // ikkala maydon ham to'ldirilishi kerak
-  if (desc.trim() === '' || addr.trim() === '') {
-    if (desc.trim() === '') {
-      document.getElementById('descInput').style.borderColor = 'red';
-    }
-    if (addr.trim() === '') {
-      document.getElementById('addrInput').style.borderColor = 'red';
-    }
+  if (!desc || !addr) {
+    if (!desc) document.getElementById('descInput').style.borderColor = 'red';
+    if (!addr) document.getElementById('addrInput').style.borderColor = 'red';
     return;
   }
 
-  // formani yashirib, qidirish animatsiyasini ko'rsatamiz
+  if (!selectedProblem) {
+    alert('Avval muammo turini tanlang');
+    return;
+  }
+
+  // Inputlarni tozalash
+  document.getElementById('descInput').style.borderColor = '';
+  document.getElementById('addrInput').style.borderColor = '';
+
   document.getElementById('orderForm').style.display = 'none';
   document.getElementById('matchedBox').style.display = 'none';
   document.getElementById('searchingBox').style.display = 'block';
 
-  // backendga haqiqiy so'rov yuboramiz
   fetch(API_MANZIL + '/api/buyurtmalar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -171,12 +208,13 @@ function sendOrder() {
   })
     .then(function (javob) {
       if (!javob.ok) {
-        throw new Error('server xatolik qaytardi');
+        return javob.json().then(function (err) {
+          throw new Error(err.xato || 'Server xatolik qaytardi');
+        });
       }
       return javob.json();
     })
     .then(function (natija) {
-      // backend qaysi ustani tayinlaganini shu yerda ko'rsatamiz
       document.getElementById('ustaAvatar').textContent = natija.usta.ism.charAt(0);
       document.getElementById('ustaName').textContent = natija.usta.ism;
       document.getElementById('ustaJobs').textContent = natija.usta.ishlarSoni + ' ta ish';
@@ -185,12 +223,15 @@ function sendOrder() {
 
       document.getElementById('searchingBox').style.display = 'none';
       document.getElementById('matchedBox').style.display = 'block';
+
+      // Formani tozalash
+      document.getElementById('descInput').value = '';
+      document.getElementById('addrInput').value = '';
     })
     .catch(function (xato) {
-      // agar backend ishlamayotgan bo'lsa yoki xato bo'lsa, shu yerda bildiramiz
       document.getElementById('searchingBox').style.display = 'none';
       document.getElementById('orderForm').style.display = 'block';
-      alert('Xatolik: backend serverga ulanib bo\'lmadi. Server ishlab turganiga ishonch hosil qiling.');
+      alert('Xatolik: ' + xato.message);
       console.error(xato);
     });
 }
